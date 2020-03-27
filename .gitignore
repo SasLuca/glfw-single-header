@@ -1,0 +1,8 @@
+.vscode
+.idea
+.vs
+cmake-build-debug/
+out/
+build/
+generated-single-header/
+generated-single-header-and-source/
