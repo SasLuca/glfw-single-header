@@ -36,12 +36,24 @@
 #include <stdlib.h>
 #include <math.h>
 
-#define GLFW_INCLUDE_NONE
 #define LSH_GLFW_IMPLEMENTATION
+
+#ifdef __APPLE__
+#if 1 // glad required
+#define GLFW_INCLUDE_NONE 
+#include "glad/gl.h"
+#else // else -framework OpenGL required
+#define gladLoadGL(func)
+#endif
+#define _GLFW_COCOA
+#include "glfw.h"
+#else
+#define GLFW_INCLUDE_NONE
 #define _GLFW_X11
 #include "glfw.h"
-
 #include "glad/gl.h"
+#endif
+
 #include "linmath.h"
 
 
