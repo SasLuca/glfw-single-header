@@ -55,7 +55,7 @@ for it in shared_sources:
     shared_source_result += include_headers(all_headers, lsh_get_file(it))
 
 # Add win32 code
-win32_source_result = "\n#ifdef _WIN32\n"
+win32_source_result = "\n#if defined _WIN32 || defined LSH_GLFW_WIN32\n"
 for it in win32_defines:
     win32_source_result += "\n" + it + "\n"
 for it in win32_sources:
@@ -80,12 +80,18 @@ for it in wayland_sources:
     wayland_source_result += include_headers(all_headers, lsh_get_file(it))
 wayland_source_result += "\n#endif\n"
 
+# Add cocoa code
+cocoa_source_result = "\n#if defined LSH_GLFW_COCOA || defined __APPLE__\n"
+for it in cocoa_sources:
+    cocoa_source_result += include_headers(all_headers, lsh_get_file(it))
+cocoa_source_result += "\n#endif\n"
+
 # Get the glfw headers
 headers_result = open("./glfw/include/GLFW/glfw3.h").read() + "\n" + open("./glfw/include/GLFW/glfw3native.h").read() + "\n"
 
 # Add single header
 source_result = "\n#ifdef LSH_GLFW_IMPLEMENTATION\n"
-source_result += win32_source_result + osmesa_source_result + x11_source_result + wayland_source_result + shared_source_result
+source_result += win32_source_result + osmesa_source_result + x11_source_result + wayland_source_result + cocoa_source_result + shared_source_result
 source_result += "\n#endif\n"
 
 # Comment out options macro error
