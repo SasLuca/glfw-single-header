@@ -1,29 +1,48 @@
+# forked from https://github.com/SasLuca/glfw-single-header (CC0-1.0 licensed)
+# _GLFW_COCOA
+# _GLFW_WIN32
+# _GLFW_X11
+# _GLFW_WAYLAND
+# _GLFW_OSMESA
+
 import os
 
-win32_defines = ["#define _GLFW_WIN32 1",
+win32_defines = [ 
                  "#ifdef _MSC_VER\n#define _CRT_SECURE_NO_WARNINGS\n#endif",
-                 "#define LSH_GLFW_USE_HYBRID_HPG",
-                 "#ifdef LSH_GLFW_USE_HYBRID_HPG\n#define _GLFW_USE_HYBRID_HPG 1\n#endif",
+                 "#ifndef _GLFW_USE_HYBRID_HPG\n#define _GLFW_USE_HYBRID_HPG 1\n#endif",
                  "#define _UNICODE",
                  "#ifdef MINGW\n#define UNICODE\n#define WINVER 0x0501\n#endif", ]
 
-win32_headers = [ "internal.h", "mappings.h", "win32_platform.h", "win32_joystick.h", "wgl_context.h", "egl_context.h", "osmesa_context.h", ]
-win32_sources = [ "win32_init.c", "win32_joystick.c", "win32_monitor.c", "win32_time.c", "win32_thread.c", "win32_window.c", "wgl_context.c", "egl_context.c", "osmesa_context.c", ]
+win32_sources   = [ "win32_init.c", "win32_joystick.c", "win32_monitor.c", "win32_time.c", "win32_thread.c", "win32_window.c", "wgl_context.c", ]
+osmesa_sources  = [ "null_init.c", "null_monitor.c", "null_window.c", "null_joystick.c", ]
+x11_sources     = [ "x11_init.c", "x11_monitor.c", "x11_window.c", "glx_context.c",  ]
+wayland_sources = [ "wl_init.c", "wl_monitor.c", "wl_window.c",  ]
+cocoa_sources   = [ "cocoa_init.m", "nsgl_context.m", "cocoa_joystick.m", "cocoa_monitor.m", "cocoa_window.m", "cocoa_time.c", ]
+time_sources    = [ "posix_time.c", ]
+thread_sources  = [ "posix_thread.c", ]
+linux_sources   = [ "linux_joystick.c", "xkb_unicode.c", ]
 
-osmesa_headers = [ "internal.h", "mappings.h","null_platform.h", "null_joystick.h", "posix_time.h", "posix_thread.h", "osmesa_context.h", ]
-osmesa_sources = [ "null_init.c", "null_monitor.c", "null_window.c", "null_joystick.c", "posix_time.c", "posix_thread.c", "osmesa_context.c", ]
-
-x11_headers     = [ "internal.h", "mappings.h", "x11_platform.h", "xkb_unicode.h", "posix_time.h", "posix_thread.h", "glx_context.h", "egl_context.h", "osmesa_context.h", "linux_joystick.h", ]
-x11_sources     = [ "x11_init.c", "x11_monitor.c", "x11_window.c", "xkb_unicode.c", "posix_time.c", "posix_thread.c", "glx_context.c", "egl_context.c", "osmesa_context.c", "linux_joystick.c",  ]
-
-wayland_headers = [ "internal.h", "mappings.h", "wl_platform.h", "posix_time.h", "posix_thread.h", "xkb_unicode.h", "egl_context.h", "osmesa_context.h", "linux_joystick.h", ]
-wayland_sources = [ "wl_init.c", "wl_monitor.c", "wl_window.c", "posix_time.c", "posix_thread.c", "xkb_unicode.c", "egl_context.c", "osmesa_context.c", "linux_joystick.c",  ]
-
-cocoa_headers   = [ "internal.h", "mappings.h", "cocoa_platform.h", "cocoa_joystick.h", "posix_thread.h", "nsgl_context.h", "egl_context.h", "osmesa_context.h", ]
-cocoa_sources   = [ "cocoa_init.m", "cocoa_joystick.m", "cocoa_monitor.m", "cocoa_window.m", "cocoa_time.c", "posix_thread.c", "nsgl_context.m", "egl_context.c", "osmesa_context.c", ]
-
-all_headers = list(set(win32_headers + osmesa_headers + x11_headers + wayland_headers + cocoa_headers))
-shared_sources = [ "context.c", "init.c", "input.c", "monitor.c", "vulkan.c", "window.c", ]
+headers = list([
+"cocoa_joystick.h",
+"cocoa_platform.h",
+"egl_context.h",
+"glx_context.h",
+"linux_joystick.h",
+"mappings.h",
+"nsgl_context.h",
+"null_joystick.h",
+"null_platform.h",
+"osmesa_context.h",
+"posix_thread.h",
+"posix_time.h",
+"wgl_context.h",
+"win32_joystick.h",
+"win32_platform.h",
+"wl_platform.h",
+"x11_platform.h",
+"xkb_unicode.h",
+])
+shared_sources = [ "internal.h", "osmesa_context.c", "egl_context.c", "context.c", "init.c", "input.c", "monitor.c", "vulkan.c", "window.c", ]
 
 # Get the file using this function since it might be cached
 files_cache = {}
@@ -34,7 +53,8 @@ def lsh_get_file(it: str) -> str:
 
     guard = f"HEADER_GUARD_{it.replace('.', '_').upper()}"
     code = open(f"./glfw/src/{it}").read()
-    files_cache[it] = f"\n#ifndef {guard}\n#define {guard}\n{code}\n#endif\n"
+    files_cache[it] = f"\n#line 1 \"{it}\"\n"
+    files_cache[it]+= f"\n#ifndef {guard}\n#define {guard}\n{code}\n#endif\n"
 
     return files_cache[it]
 
@@ -52,46 +72,65 @@ def include_headers(headers, source: str) -> str:
 # Add shared code
 shared_source_result = ""
 for it in shared_sources:
-    shared_source_result += include_headers(all_headers, lsh_get_file(it))
+    shared_source_result += include_headers(headers, lsh_get_file(it))
 
 # Add win32 code
-win32_source_result = "\n#if defined _WIN32 || defined LSH_GLFW_WIN32\n"
+win32_source_result = "\n#ifdef _GLFW_WIN32\n"
 for it in win32_defines:
     win32_source_result += "\n" + it + "\n"
 for it in win32_sources:
-    win32_source_result += include_headers(all_headers, lsh_get_file(it))
+    win32_source_result += include_headers(headers, lsh_get_file(it))
 win32_source_result += "\n#endif\n"
 
 # Add osmesa code
-osmesa_source_result = "\n#ifdef LSH_GLFW_OSMESA\n"
+osmesa_source_result = "\n#ifdef _GLFW_OSMESA\n"
 for it in osmesa_sources:
-    osmesa_source_result += include_headers(all_headers, lsh_get_file(it))
+    osmesa_source_result += include_headers(headers, lsh_get_file(it))
 osmesa_source_result += "\n#endif\n"
 
 # Add x11 code
-x11_source_result = "\n#ifdef LSH_GLFW_X11\n"
+x11_source_result = "\n#ifdef _GLFW_X11\n"
 for it in x11_sources:
-    x11_source_result += include_headers(all_headers, lsh_get_file(it))
+    x11_source_result += include_headers(headers, lsh_get_file(it))
 x11_source_result += "\n#endif\n"
 
 # Add wayland code
-wayland_source_result = "\n#ifdef LSH_GLFW_WAYLAND\n"
+wayland_source_result = "\n#ifdef _GLFW_WAYLAND\n"
 for it in wayland_sources:
-    wayland_source_result += include_headers(all_headers, lsh_get_file(it))
+    wayland_source_result += include_headers(headers, lsh_get_file(it))
 wayland_source_result += "\n#endif\n"
 
 # Add cocoa code
-cocoa_source_result = "\n#if defined LSH_GLFW_COCOA || defined __APPLE__\n"
+cocoa_source_result = "\n#ifdef _GLFW_COCOA\n"
 for it in cocoa_sources:
-    cocoa_source_result += include_headers(all_headers, lsh_get_file(it))
+    cocoa_source_result += include_headers(headers, lsh_get_file(it))
 cocoa_source_result += "\n#endif\n"
+
+# Add posix_time code (if linux)
+time_source_result = "\n#if !defined _GLFW_COCOA && !defined _GLFW_WIN32\n"
+for it in time_sources:
+    time_source_result += include_headers(headers, lsh_get_file(it))
+time_source_result += "\n#endif\n"
+
+# Add posix_thread code (if linux+osx) (if !win32)
+thread_source_result = "\n#if !defined _GLFW_WIN32\n"
+for it in thread_sources:
+    thread_source_result += include_headers(headers, lsh_get_file(it))
+thread_source_result += "\n#endif\n"
+
+# Add linux code (if !osx && !win32 && !mesa)
+linux_source_result = "\n#if !defined _GLFW_COCOA && !defined _GLFW_WIN32 && !defined _GLFW_OSMESA\n"
+for it in linux_sources:
+    linux_source_result += include_headers(headers, lsh_get_file(it))
+linux_source_result += "\n#endif\n"
 
 # Get the glfw headers
 headers_result = open("./glfw/include/GLFW/glfw3.h").read() + "\n" + open("./glfw/include/GLFW/glfw3native.h").read() + "\n"
 
 # Add single header
-source_result = "\n#ifdef LSH_GLFW_IMPLEMENTATION\n"
-source_result += win32_source_result + osmesa_source_result + x11_source_result + wayland_source_result + cocoa_source_result + shared_source_result
+source_result = "\n#ifdef _GLFW_IMPLEMENTATION\n"
+source_result += shared_source_result + win32_source_result + osmesa_source_result + x11_source_result + wayland_source_result + cocoa_source_result
+source_result += time_source_result + thread_source_result + linux_source_result
 source_result += "\n#endif\n"
 
 # Comment out options macro error
@@ -102,18 +141,21 @@ source_result = source_result.replace("#error \"You must not define any header o
 #     source_result = source_result.replace(f"#include \"{it}\"", f"//#include \"{it}\"")
 
 source_result = source_result.replace("#include \"../include/GLFW/glfw3.h\"", "//#include \"../include/GLFW/glfw3.h\"")
+source_result = source_result.replace("#include \"internal.h\"", "\n")
+
+# for glad
+opengl_defines = [ "GL_VERSION", "GL_EXTENSIONS", "GL_NUM_EXTENSIONS", "GL_CONTEXT_FLAGS", "GL_CONTEXT_RELEASE_BEHAVIOR", "GL_CONTEXT_RELEASE_BEHAVIOR_FLUSH", ]
+for it in opengl_defines:
+    source_result = source_result.replace(f"#define {it}", f"//#define {it}")
 
 # Make dirs
-if not os.path.exists("./generated-single-header"):
-    os.makedirs("./generated-single-header")
-
-if not os.path.exists("./generated-single-header-and-source"):
-    os.makedirs("./generated-single-header-and-source")
+if not os.path.exists("./source"):
+    os.makedirs("./source")
 
 # Make single header
-open("./generated-single-header/glfw.h", "w+").write(headers_result + source_result)
+open("./glfw.h", "w+").write(headers_result + source_result)
 
 # Make single header + single source
-open("./generated-single-header-and-source/glfw.h", "w+").write(headers_result)
-open("./generated-single-header-and-source/glfw.c", "w+").write(
-    headers_result + "\n#define LSH_GLFW_IMPLEMENTATION\n" + source_result)
+open("./source/glfw.h", "w+").write(headers_result)
+open("./source/glfw.c", "w+").write(
+    headers_result + "\n#define _GLFW_IMPLEMENTATION\n" + source_result)
